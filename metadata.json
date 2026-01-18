@@ -1,0 +1,5 @@
+{
+  "name": "WinDo Task Notifier",
+  "description": "A modern Windows-styled task manager with audio notifications, custom MP3 support, and CSV import.",
+  "requestFramePermissions": []
+}
