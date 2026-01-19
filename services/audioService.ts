@@ -73,7 +73,7 @@ class AudioService {
     });
   }
 
-  private speakText(text: string, volume: number, onEnd?: () => void) {
+  private speakText(text: string, volume: number, voiceURI: string | null, onEnd?: () => void) {
     if ('speechSynthesis' in window) {
       // Cancel existing speech
       window.speechSynthesis.cancel();
@@ -82,6 +82,15 @@ class AudioService {
       utterance.volume = volume;
       utterance.rate = 1;
       
+      // Attempt to set voice if provided
+      if (voiceURI) {
+        const voices = window.speechSynthesis.getVoices();
+        const selectedVoice = voices.find(v => v.voiceURI === voiceURI);
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+      }
+
       if (onEnd) {
         utterance.onend = onEnd;
       }
@@ -168,12 +177,9 @@ class AudioService {
       await this.audioContext.resume();
     }
 
-    const { soundMode, volume, audioDuration, audioLoop, customSoundData } = settings;
+    const { soundMode, volume, audioDuration, audioLoop, customSoundData, voiceURI } = settings;
 
     // Set Max Duration Timeout
-    // If audioLoop is false, the sound might end naturally before this.
-    // If audioLoop is true, this is the hard cut-off (unless unlimited conceptual, but prompt said max 300).
-    // We will treat audioDuration as the "active alarm" time.
     if (audioDuration > 0) {
       this.stopTimeout = window.setTimeout(() => {
         this.stop();
@@ -185,16 +191,14 @@ class AudioService {
       
       if (audioLoop) {
         const speakLoop = () => {
-          this.speakText(text, volume, () => {
+          this.speakText(text, volume, voiceURI, () => {
              // Calculate a small pause or just run again immediately
-             // We use a small timeout to prevent stack overflow recursion issues, 
-             // though speech synthesis is async.
              this.loopInterval = window.setTimeout(speakLoop, 1000);
           });
         };
         speakLoop();
       } else {
-        this.speakText(text, volume, () => {
+        this.speakText(text, volume, voiceURI, () => {
            // Natural end
            if (this.onPlaybackEnd) this.onPlaybackEnd();
         });

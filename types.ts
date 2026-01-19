@@ -21,6 +21,7 @@ export interface AppSettings {
   volume: number; // 0 to 1
   audioDuration: number; // in seconds, max 300
   audioLoop: boolean; // Play continuously until stopped
+  voiceURI: string | null; // Specific voice for TTS
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,4 +33,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   volume: 0.8,
   audioDuration: 30,
   audioLoop: true,
+  voiceURI: null,
 };

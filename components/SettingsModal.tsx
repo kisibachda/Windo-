@@ -14,6 +14,21 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const available = window.speechSynthesis.getVoices();
+      setVoices(available);
+    };
+    
+    loadVoices();
+    
+    // Chrome requires this event to load voices
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
 
   // Stop preview if modal is closed from parent or unmounts
   useEffect(() => {
@@ -65,6 +80,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
   const handleLoopChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSave({ ...settings, audioLoop: e.target.checked });
+  };
+
+  const handleVoiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onSave({ ...settings, voiceURI: e.target.value || null });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,6 +221,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
             </button>
           </div>
         </div>
+
+        {/* Voice Selector for TTS */}
+        {settings.soundMode === 'tts' && voices.length > 0 && (
+            <div className="animate-in slide-in-from-top-2 duration-300">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">Voice</label>
+                <select
+                    value={settings.voiceURI || ''}
+                    onChange={handleVoiceChange}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                    <option value="">Default Voice</option>
+                    {voices.map(voice => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                            {voice.name} ({voice.lang})
+                        </option>
+                    ))}
+                </select>
+            </div>
+        )}
 
         {/* Custom File Upload */}
         {settings.soundMode === 'custom' && (

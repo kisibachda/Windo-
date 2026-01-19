@@ -1,0 +1,16 @@
+{
+  "name": "WinDo Task Notifier",
+  "short_name": "WinDo",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f3f3f3",
+  "theme_color": "#2563eb",
+  "description": "A modern Windows-styled task manager.",
+  "icons": [
+    {
+        "src": "https://unpkg.com/lucide-static@latest/icons/check-circle-2.svg",
+        "sizes": "any",
+        "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task, AppSettings, DEFAULT_SETTINGS, Priority } from './types';
-import { Settings, Plus, FileInput, Bell, BellOff, VolumeX, Flag, Download } from 'lucide-react';
+import { Settings, Plus, FileInput, Bell, BellOff, VolumeX, Flag, Download, MonitorDown } from 'lucide-react';
 import { Reorder } from 'framer-motion';
 import { TaskItem } from './components/TaskItem';
 import { SettingsModal } from './components/SettingsModal';
@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ongoing' | 'completed'>('ongoing');
   const [isAlarmRinging, setIsAlarmRinging] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
   
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,6 +73,16 @@ const App: React.FC = () => {
         console.error("Failed to save settings:", e);
     }
   }, [settings]);
+
+  // PWA Install Prompt Listener
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   // Timer Logic
   useEffect(() => {
@@ -193,6 +204,17 @@ const App: React.FC = () => {
     setTasks([...newOrder, ...completedTasks]);
   };
 
+  const handleInstallClick = () => {
+    if (installPrompt) {
+        installPrompt.prompt();
+        installPrompt.userChoice.then((choiceResult: any) => {
+            if (choiceResult.outcome === 'accepted') {
+                setInstallPrompt(null);
+            }
+        });
+    }
+  };
+
   const downloadTemplate = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + "Title,Time,Date,Priority\n"
@@ -298,6 +320,16 @@ const App: React.FC = () => {
                     className="flex items-center gap-2 px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-lg font-medium mr-2 animate-bounce transition-colors"
                 >
                     <VolumeX size={18} /> Stop Alarm
+                </button>
+            )}
+
+            {installPrompt && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-all"
+                  title="Install App"
+                >
+                  <MonitorDown size={20} />
                 </button>
             )}
             
