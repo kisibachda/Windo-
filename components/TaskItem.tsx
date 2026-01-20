@@ -81,7 +81,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggle, onDelete, on
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col gap-0.5 relative z-10">
             <div className="flex items-center gap-2">
-                <span className={`truncate font-medium transition-all duration-300 ${task.completed ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                <span className={`truncate font-medium transition-colors duration-300 ${task.completed ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
                     {task.title}
                 </span>
                 {task.priority === 'high' && !task.completed && (
@@ -120,7 +120,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, onToggle, onDelete, on
       </div>
   );
 
-  const className = "group bg-white dark:bg-slate-800 rounded-lg shadow-sm border-r border-y border-slate-200 dark:border-slate-700 mb-3 overflow-hidden transition-all hover:shadow-md dark:hover:shadow-slate-900/50";
+  const className = "group bg-white dark:bg-slate-800 rounded-lg shadow-sm border-r border-y border-slate-200 dark:border-slate-700 overflow-hidden transition-shadow hover:shadow-md dark:hover:shadow-slate-900/50";
 
   if (isReorderable) {
     return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Task, AppSettings, DEFAULT_SETTINGS, Priority } from './types';
-import { Settings, Plus, FileInput, Bell, BellOff, VolumeX, Flag, Download, MonitorDown } from 'lucide-react';
+import { Task, AppSettings, DEFAULT_SETTINGS, Priority, SortOption } from './types';
+import { Settings, Plus, FileInput, Bell, BellOff, VolumeX, Flag, Download, MonitorDown, Cloud, ArrowUpDown } from 'lucide-react';
 import { Reorder } from 'framer-motion';
 import { TaskItem } from './components/TaskItem';
 import { SettingsModal } from './components/SettingsModal';
@@ -8,6 +8,8 @@ import { EditModal } from './components/EditModal';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { DatePicker } from './components/ui/DatePicker';
 import { audioService } from './services/audioService';
+import { syncService } from './services/syncService';
+import { User } from 'firebase/auth';
 
 const App: React.FC = () => {
   // Helpers
@@ -24,7 +26,8 @@ const App: React.FC = () => {
     return parsed.map((t: any) => ({
         ...t,
         date: t.date || getTodayDate(),
-        priority: t.priority || 'medium'
+        priority: t.priority || 'medium',
+        createdAt: t.createdAt || Date.now()
     }));
   });
   
@@ -49,8 +52,48 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ongoing' | 'completed'>('ongoing');
   const [isAlarmRinging, setIsAlarmRinging] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('manual');
+  
+  // Cloud State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize Sync Service
+  useEffect(() => {
+    if (settings.firebaseConfig && !syncService.isInitialized()) {
+        syncService.initialize(settings.firebaseConfig);
+    }
+    
+    // Listen to Auth
+    const unsub = syncService.onAuthChange((user) => {
+        setCurrentUser(user);
+    });
+
+    return () => unsub && unsub();
+  }, [settings.firebaseConfig]);
+
+  // Sync Logic: Subscribe to Cloud Tasks
+  useEffect(() => {
+    if (currentUser) {
+        syncService.subscribeToTasks(currentUser, (cloudTasks) => {
+            // Simple conflict strategy: Cloud wins. 
+            // In a real app we might merge by ID or timestamp.
+            setTasks(cloudTasks);
+        });
+    }
+  }, [currentUser]);
+
+  // Sync Logic: Save Local Changes to Cloud
+  // Debounce saving to avoid too many writes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+        if (currentUser && syncService.isInitialized()) {
+            syncService.saveTasks(currentUser, tasks);
+        }
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [tasks, currentUser]);
 
   // Apply Theme
   useEffect(() => {
@@ -61,7 +104,7 @@ const App: React.FC = () => {
     }
   }, [settings.theme]);
 
-  // Persistence
+  // Persistence (Local)
   useEffect(() => {
     localStorage.setItem('windo-tasks', JSON.stringify(tasks));
   }, [tasks]);
@@ -142,6 +185,7 @@ const App: React.FC = () => {
       date: newTaskDate,
       priority: newTaskPriority,
       completed: false,
+      createdAt: Date.now(),
     };
 
     setTasks([...tasks, newTask]);
@@ -149,7 +193,9 @@ const App: React.FC = () => {
     setNewTaskTime('');
     setNewTaskDate(getTodayDate());
     setNewTaskPriority('medium');
-    setActiveTab('ongoing');
+    
+    // If user adds a task while sorting is active, it might jump. 
+    // We keep the sort active.
   };
 
   const addTask = (e: React.FormEvent) => {
@@ -200,6 +246,7 @@ const App: React.FC = () => {
   };
 
   const handleReorder = (newOrder: Task[]) => {
+    // Only works in manual mode for ongoing tasks
     const completedTasks = tasks.filter(t => t.completed);
     setTasks([...newOrder, ...completedTasks]);
   };
@@ -279,7 +326,8 @@ const App: React.FC = () => {
                time: formattedTime,
                date: formattedDate,
                priority: validPriority,
-               completed: false
+               completed: false,
+               createdAt: Date.now() + i // Slight offset to preserve import order in creation sort
              });
            }
         }
@@ -296,7 +344,32 @@ const App: React.FC = () => {
     if (csvInputRef.current) csvInputRef.current.value = '';
   };
 
+  // Sort Logic
+  const getSortedTasks = (taskList: Task[]) => {
+    switch (sortBy) {
+        case 'priority':
+             // High(3) > Medium(2) > Low(1)
+             const pWeight = { high: 3, medium: 2, low: 1 };
+             return [...taskList].sort((a, b) => {
+                 const diff = pWeight[b.priority] - pWeight[a.priority];
+                 if (diff !== 0) return diff;
+                 // Secondary: Date
+                 return new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime();
+             });
+        case 'date':
+             // Earliest first
+             return [...taskList].sort((a, b) => new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime());
+        case 'creation':
+             // Newest first
+             return [...taskList].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        case 'manual':
+        default:
+             return taskList;
+    }
+  };
+
   const filteredTasks = tasks.filter(t => activeTab === 'ongoing' ? !t.completed : t.completed);
+  const visibleTasks = getSortedTasks(filteredTasks);
 
   return (
     <div className="min-h-screen p-4 sm:p-8 flex justify-center transition-colors duration-300">
@@ -310,7 +383,9 @@ const App: React.FC = () => {
             </div>
             <div>
                 <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight transition-colors">WinDo</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium transition-colors">Task Notification Manager</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium transition-colors">
+                    {currentUser ? `Synced: ${currentUser.email}` : 'Task Notification Manager'}
+                </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -331,6 +406,12 @@ const App: React.FC = () => {
                 >
                   <MonitorDown size={20} />
                 </button>
+            )}
+
+            {currentUser && (
+               <div className="text-blue-500 dark:text-blue-400 p-2" title="Cloud Sync Active">
+                  <Cloud size={20} />
+               </div>
             )}
             
             <button 
@@ -427,30 +508,47 @@ const App: React.FC = () => {
 
         {/* Tabs & List */}
         <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-1 mb-4 border-b border-slate-200 dark:border-slate-700 px-2 transition-colors">
-                <button 
-                    onClick={() => setActiveTab('ongoing')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 ${
-                        activeTab === 'ongoing' 
-                        ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-800' 
-                        : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                >
-                    Ongoing ({tasks.filter(t => !t.completed).length})
-                </button>
-                <button 
-                    onClick={() => setActiveTab('completed')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 ${
-                        activeTab === 'completed' 
-                        ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-800' 
-                        : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                >
-                    Completed ({tasks.filter(t => t.completed).length})
-                </button>
+            <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-700 px-2 transition-colors">
+                <div className="flex gap-1">
+                    <button 
+                        onClick={() => setActiveTab('ongoing')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 ${
+                            activeTab === 'ongoing' 
+                            ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-800' 
+                            : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                    >
+                        Ongoing ({tasks.filter(t => !t.completed).length})
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('completed')}
+                        className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-all border-b-2 ${
+                            activeTab === 'completed' 
+                            ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-500 bg-white dark:bg-slate-800' 
+                            : 'text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        }`}
+                    >
+                        Completed ({tasks.filter(t => t.completed).length})
+                    </button>
+                </div>
+
+                {/* Sort Control */}
+                <div className="flex items-center gap-2 pb-1.5">
+                     <ArrowUpDown size={14} className="text-slate-400" />
+                     <select 
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as SortOption)}
+                        className="text-sm bg-transparent border-none text-slate-600 dark:text-slate-400 focus:ring-0 cursor-pointer font-medium"
+                     >
+                        <option value="manual">Manual</option>
+                        <option value="priority">Priority</option>
+                        <option value="date">Due Date</option>
+                        <option value="creation">Created</option>
+                     </select>
+                </div>
             </div>
             
-            {filteredTasks.length === 0 ? (
+            {visibleTasks.length === 0 ? (
                 <div className="text-center py-12 opacity-50 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 transition-colors">
                     <p className="text-slate-500 dark:text-slate-400">
                         {activeTab === 'ongoing' ? "No tasks scheduled." : "No completed tasks yet."}
@@ -458,9 +556,10 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {activeTab === 'ongoing' ? (
-                        <Reorder.Group axis="y" values={filteredTasks} onReorder={handleReorder} className="space-y-3">
-                            {filteredTasks.map(task => (
+                    {/* Updated to use gap logic for smoother reorder */}
+                    {activeTab === 'ongoing' && sortBy === 'manual' ? (
+                        <Reorder.Group axis="y" values={visibleTasks} onReorder={handleReorder} className="flex flex-col gap-3">
+                            {visibleTasks.map(task => (
                                 <TaskItem 
                                     key={task.id} 
                                     task={task} 
@@ -472,8 +571,8 @@ const App: React.FC = () => {
                             ))}
                         </Reorder.Group>
                     ) : (
-                         <div className="space-y-3">
-                            {filteredTasks.map(task => (
+                         <div className="flex flex-col gap-3">
+                            {visibleTasks.map(task => (
                                 <TaskItem 
                                     key={task.id} 
                                     task={task} 

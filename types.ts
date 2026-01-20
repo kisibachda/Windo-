@@ -8,9 +8,20 @@ export interface Task {
   priority: Priority;
   completed: boolean;
   notified?: boolean;
+  createdAt?: number;
 }
 
 export type SoundMode = 'bell' | 'tts' | 'custom';
+export type SortOption = 'manual' | 'priority' | 'date' | 'creation';
+
+export interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+}
 
 export interface AppSettings {
   theme: 'light' | 'dark';
@@ -22,6 +33,7 @@ export interface AppSettings {
   audioDuration: number; // in seconds, max 300
   audioLoop: boolean; // Play continuously until stopped
   voiceURI: string | null; // Specific voice for TTS
+  firebaseConfig: FirebaseConfig | null;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -34,4 +46,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   audioDuration: 30,
   audioLoop: true,
   voiceURI: null,
+  firebaseConfig: null,
 };

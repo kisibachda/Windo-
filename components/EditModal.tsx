@@ -35,7 +35,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit Task">
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Task" maxWidth="max-w-xl">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Task Name</label>
@@ -43,8 +43,9 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 transition-all placeholder:text-slate-400"
             autoFocus
+            placeholder="What needs to be done?"
           />
         </div>
         
@@ -53,7 +54,8 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date</label>
               <DatePicker 
                 value={date} 
-                onChange={setDate} 
+                onChange={setDate}
+                className="w-full"
               />
             </div>
             <div>
@@ -62,7 +64,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all color-scheme-dark"
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 transition-all font-mono color-scheme-dark"
               />
             </div>
         </div>
@@ -79,7 +81,7 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
                  <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as Priority)}
-                    className="w-full pl-9 pr-3 py-2 appearance-none bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                    className="w-full pl-9 pr-3 py-2.5 appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-500/30 transition-all cursor-pointer font-medium"
                  >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -92,13 +94,13 @@ export const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, task, onS
             <button 
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
                 Cancel
             </button>
             <button 
                 type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 rounded-md shadow-sm transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-50 rounded-lg shadow-sm transition-colors"
             >
                 Save Changes
             </button>
